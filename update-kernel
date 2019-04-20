@@ -1,0 +1,61 @@
+#!/usr/bin/env sh
+# Author: J.M. Thiessen <jacob@x0rz3q.com>
+# Version: 0.1
+
+LOG_FILE="/var/log/kernel_update.log"
+
+log() {
+	printf "\033[0;37m%s \033[0m%s\n" "[$(date +%FT%TZ)]" "$*"
+}
+
+seperator() {
+	printf "%s" "----------" >> $LOG_FILE
+}
+
+if [ $UID != 0 ]; then
+	printf "\033[1;31m%s\n" "Root permissions required!"
+	exit 1
+fi
+
+log "Log file is located at $LOG_FILE"
+
+if [ $(cat "/proc/mounts" | grep "/boot" | wc -l) == 0 ]; then
+	log "Mounting boot"
+	mount $BOOT_DRIVE "/boot"
+fi
+
+eselect kernel list
+
+read -p "Kernel: " version
+eselect kernel set $version
+
+kernel=$(uname -r)
+cp "/boot/config-$kernel" /usr/src/linux
+
+cd /usr/src/linux
+
+log "Running olddef"
+make olddefconfig 2>&1 > $LOG_FILE
+
+seperator
+log "Running make kernel"
+make -j$(nproc) 2>&1 >> $LOG_FILE
+
+seperator 
+log "Running make modules"
+make -j$(nproc) modules_install 2>&1 >> $LOG_FILE
+
+seperator
+log "Installing new kernel"
+make install 2>&1 >> $LOG_FILE
+
+seperator
+log "Setting up initramfs"
+genkernel initramfs --luks --lvm 2>&1 >> $LOG_FILE
+
+seperator
+log "Updating bootloader"
+grub-mkconfig -o /boot/grub/grub.cfg 2>&1 >> $LOG_FILE
+
+log "Unmounting boot"
+umount "/boot"
