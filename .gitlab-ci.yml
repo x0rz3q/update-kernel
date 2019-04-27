@@ -12,4 +12,4 @@ before_script:
 test:
   stage: test
   script:
-    - spellcheck update-kernel
+    - shellcheck update-kernel
