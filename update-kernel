@@ -1,9 +1,38 @@
 #!/usr/bin/env sh
 # Author: J.M. Thiessen <jacob@x0rz3q.com>
-# Version: 0.1
+# Version: 0.2
 
 LOG_FILE="/var/log/kernel_update.log"
 SEPERATOR_STRING="----------"
+
+# print usage
+usage() {
+	printf "%s\n" "Usage: $0 [-l] [-e] [-m] [-h]"
+	printf "\t%s\n" "-l enable lvm"
+	printf "\t%s\n" "-e enable luks"
+	printf "\t%s\n" "-m enable mdadm"
+	printf "\t%s\n" "-h help"
+}
+
+OPTS=""
+
+while getopts ":lemh" arg; do
+	case $arg in
+		l)
+			OPTS="$OPTS --lvm"
+			;;
+		e)
+			OPTS="$OPTS --luks"
+			;;
+		m)
+			OPTS="$OPTS --mdadm"
+			;;
+		h | *)
+			usage
+			exit 0
+			;;
+	esac
+done
 
 # simple logging method
 log() {
@@ -59,7 +88,8 @@ log "Installing new kernel"
 
 seperator "initramfs"
 log "Setting up initramfs"
-{ genkernel initramfs --luks --lvm >> $LOG_FILE; } 2>&1
+echo $OPTS
+{ genkernel initramfs $OPTS >> $LOG_FILE; } 2>&1
 
 seperator "bootloader"
 log "Updating bootloader"
